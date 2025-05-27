@@ -204,9 +204,7 @@ class PictureProcessorApp:
             canvas_height = self.original_canvas.winfo_height()
             x1, x2 = max(0, min(x1, canvas_width)), max(0, min(x2, canvas_width))
             y1, y2 = max(0, min(y1, canvas_height)), max(0, min(y2, canvas_height))
-            x_start，x_end = soeted(x1, x2)
-            y_start，y_end = soeted(x1, x2)   #update to ensure top left to bottom right order
-            self.crop_rect = (x_start，y_start, x_end, y_end)
+            self.crop_rect = (x1，y1,x2,y2)
             self.update_picture_display()
 
     # finish cropping 
