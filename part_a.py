@@ -204,7 +204,9 @@ class PictureProcessorApp:
             canvas_height = self.original_canvas.winfo_height()
             x1, x2 = max(0, min(x1, canvas_width)), max(0, min(x2, canvas_width))
             y1, y2 = max(0, min(y1, canvas_height)), max(0, min(y2, canvas_height))
-            self.crop_rect = (x1, y1, x2, y2)
+            x_start，x_end = soeted(x1, x2)
+            y_start，y_end = soeted(x1, x2)   #update to ensure top left to bottom right order
+            self.crop_rect = (x_start，y_start, x_end, y_end)
             self.update_picture_display()
 
     # finish cropping 
@@ -223,10 +225,10 @@ class PictureProcessorApp:
             x_offset = (canvas_width - disp_w) // 2
             y_offset = (canvas_height - disp_h) // 2
 
-            crop_x1 = int((x1 -x_offset) / scale)
-            crop_y1 = int((y1 -y_offset) / scale)
-            crop_x2 = int((x2 -x_offset) / scale)
-            crop_y2 = int((y2 -y_offset) / scale)
+            crop_x1 = int((x1 -x_offset) / scale+0.5)
+            crop_y1 = int((y1 -y_offset) / scale+0.5)
+            crop_x2 = int((x2 -x_offset) / scale+0.5)
+            crop_y2 = int((y2 -y_offset) / scale+0.5)
              #make sure the coordinates are within the pic bounds
             crop_x1 = max(0, crop_x1)
             crop_y1 = max(0, crop_y1)
