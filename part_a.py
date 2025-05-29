@@ -2,7 +2,6 @@ import cv2
 import tkinter as tk
 from tkinter import filedialog, ttk
 from PIL import Image, ImageTk
-import numpy as np
 import os
 
 class PictureProcessorApp:
@@ -16,9 +15,10 @@ class PictureProcessorApp:
         self.display_picture = None  #show the current picture in the canvas
         self.crop_start = None       # start coordinations for cutting
         self.crop_rect = None        #Cutting rectangle coordinates
-        self.scale_factor = 1.0 # current scale for procrssed pic
+        self.scale_factor = 1.0       # current scale for procrssed pic
         self.display_to_picture_scale = (1.0, 1.0)  # scale between display size and actual pic
-        self.setup_window() # set up GUI
+        self.picture_offset = (0,0)      #update stores pic offset in canvas
+        self.setup_window()            # set up GUI
         
         # create the menus, buttons, and display areas
     def setup_window(self):  
@@ -141,23 +141,26 @@ class PictureProcessorApp:
         if self.display_picture is not None:
             pic = self.display_picture.copy()
             h, w = pic.shape[:2]
-            scale = min(MAX_WIDTH / w, MAX_HEIGHT / h, 1.0) # calculate scale factor to fit the canvas
+             # calculate scale factor to fit the canvas
+            scale = min(MAX_WIDTH / w, MAX_HEIGHT / h, 1.0)
             disp_w, disp_h = int(w * scale), int(h * scale)
-
+             #resize and convert to pic
             pic_resized = cv2.resize(pic, (disp_w, disp_h))
             pic_pil = Image.fromarray(pic_resized)
             pic_tk = ImageTk.PhotoImage(pic_pil)
             
-            #update the canvas size and show the pic
-            scale = min(MAX_WIDTH / w, MAX_HEIGHT / h, 1.0)
-            disp_w, disp_h = int(w * scale), int(h * scale)
+            #update the canvas size 
             self.original_canvas.config(width=MAX_WIDTH, height=MAX_HEIGHT)
             self.original_canvas.delete("all")
+            
+            #calculate and store pic
             x_offset = (MAX_WIDTH - disp_w) // 2
             y_offset = (MAX_HEIGHT - disp_h) // 2
+            self.picture_offset = (x_offset, y_offset)
+            
             self.original_canvas.create_image(x_offset, y_offset, anchor=tk.NW, image=pic_tk)
             self.original_canvas.image = pic_tk
-            self.display_to_picture_scale = (1/scale, 1/scale)
+            self.display_to_picture_scale = (w/disp_w, h/disp_h) #update cuz more accurate
 
               #draw crop rectangle if it exists
             if self.crop_rect:
@@ -166,7 +169,7 @@ class PictureProcessorApp:
                 x2, y2 = min(MAX_WIDTH, x2), min(MAX_HEIGHT, y2)
                 self.original_canvas.create_rectangle(x1, y1, x2, y2, outline="yellow", width=2)
 
-          # show the cutted pic if it exists
+          # show the cutted pic 
         if self.cropped_picture is not None:
             processed_pic = self.cropped_picture.copy()
             new_w = int(processed_pic.shape[1] * self.scale_factor)
@@ -204,29 +207,27 @@ class PictureProcessorApp:
             canvas_height = self.original_canvas.winfo_height()
             x1, x2 = max(0, min(x1, canvas_width)), max(0, min(x2, canvas_width))
             y1, y2 = max(0, min(y1, canvas_height)), max(0, min(y2, canvas_height))
-            self.crop_rect = (x1，y1,x2,y2)
+            self.crop_rect = (x1,y1,x2,y2)
             self.update_picture_display()
 
     # finish cropping 
     def end_crop(self, _):  # '_' means ignoring the event parameter
         if self.crop_rect and self.display_picture is not None:
             x1, y1, x2, y2 = self.crop_rect
-            x_sta, x_end = sorted((x1, x2))
-            y_sta, y_end = sorted((y1, y2))
+            x1, x2 = sorted((x1, x2))    #make sure x1< x2
+            y1, y2 = sorted((y1, y2))     #same as above 
 
-            canvas_width = self.original_canvas.winfo_width()
-            canvas_height = self.original_canvas.winfo_height()
+            
+            #  image offset and scaling factors
+            x_offset, y_offset = self.picture_offset
+            scale_x, scale_y = self.display_to_picture_scale
             pic_h, pic_w = self.display_picture.shape[:2]
-            #calculate the scaling ratio between the display and the actual pic
-            scale = min(canvas_width / pic_w, canvas_height / pic_h)
-            disp_w, disp_h = int(pic_w * scale), int(pic_h * scale)
-            x_offset = (canvas_width - disp_w) // 2
-            y_offset = (canvas_height - disp_h) // 2
 
-            crop_x1 = int((x1 -x_offset) / scale+0.5)
-            crop_y1 = int((y1 -y_offset) / scale+0.5)
-            crop_x2 = int((x2 -x_offset) / scale+0.5)
-            crop_y2 = int((y2 -y_offset) / scale+0.5)
+            # convert canvas coordinates to image coordinates
+            crop_x1 = int((x1 -x_offset) * scale_x)
+            crop_y1 = int((y1 -y_offset) * scale_y)
+            crop_x2 = int((x2 -x_offset) * scale_x)
+            crop_y2 = int((y2 -y_offset) * scale_y)
              #make sure the coordinates are within the pic bounds
             crop_x1 = max(0, crop_x1)
             crop_y1 = max(0, crop_y1)
@@ -240,12 +241,6 @@ class PictureProcessorApp:
                 self.scale_slider.set(1.0)
                 self.update_picture_display()
                 self.status_bar.config(text="Picture cropped successfully")
-                if hasattr (self,"debug_mode") and self.debug_mode:
-                    print(f"Crop Canvas: ({x_sta},{y_sta})-({x_end},{y_end})")
-                    print(f"Crop Image: ({crop_x1},{crop_y1})-({crop_x2},{crop_y2})")
-                    debug_img = cv2.cvtColor(self.display_picture.copy(), cv2.COLOR_RGB2BGR)
-                    cv2.rectangle(debug_img, (crop_x1, crop_y1), (crop_x2, crop_y2), (0, 255, 0), 2)
-                    cv2.imshow("Debug Crop", debug_img)
             else:
                 self.status_bar.config(text="Crop area too small ")
         
@@ -258,7 +253,7 @@ class PictureProcessorApp:
             if self.cropped_picture is not None:
                 self.update_picture_display()
         except ValueError:
-               print("Invalid scale value received. Must be a float.")
+               self.status_bar.config(text="Invalid scale value")
 
 
     # save cutted picture 
